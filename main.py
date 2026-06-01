@@ -3,11 +3,12 @@ import os
 import json
 import importlib
 import inspect
+import time
 import pygame
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QTabWidget, QLabel, QLineEdit, QPushButton, QFormLayout, QMessageBox, QGroupBox,
-    QComboBox, QScrollArea, QSlider, QCheckBox
+    QComboBox, QScrollArea, QSlider, QCheckBox, QSpinBox
 )
 from PyQt6.QtCore import QTimer, Qt, QBuffer, QIODevice
 from PyQt6.QtGui import QImage, QPixmap
@@ -19,6 +20,16 @@ from animations.base import BaseAnimation
 from color_correction import ColorCorrector, ProfileManager
 from web_server import start_web_server
 import queue
+
+MIN_FPS = 1
+MAX_FPS = 120
+
+def clamp_fps(value, default=30):
+    try:
+        fps = int(value)
+    except Exception:
+        fps = default
+    return max(MIN_FPS, min(MAX_FPS, fps))
 
 def load_config(path="config.json"):
     try:
@@ -39,7 +50,17 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("WLED Animador y Capturador")
         
         self.config = load_config()
-        self.config.setdefault("app", {})["preview"] = False
+        self.config.setdefault("wled", {"ip": "192.168.1.100", "port": 4048})
+        self.config.setdefault("matrix", {"width": 16, "height": 16})
+        app_cfg = self.config.setdefault("app", {})
+        app_cfg["preview"] = False
+        app_cfg["fps"] = clamp_fps(app_cfg.get("fps", 30))
+        self.target_fps = app_cfg["fps"]
+        self.preview_fps = min(15, self.target_fps)
+        self._preview_interval = 1.0 / max(1, self.preview_fps)
+        self._next_preview_update = 0.0
+        self._next_web_state_sync = 0.0
+        self._web_state_sync_interval = 0.25
         
         self.engine = MatrixEngine(self.config)
         self.sender = DDPSender(
@@ -68,6 +89,7 @@ class MainWindow(QMainWindow):
                 "ip": self.config.get("wled", {}).get("ip", "192.168.1.100"),
                 "width": self.config.get("matrix", {}).get("width", 16),
                 "height": self.config.get("matrix", {}).get("height", 16),
+                "fps": self.target_fps,
             },
             "color_correction": dict(self.config.get("color_correction", {"r":255, "g":255, "b":255, "bri":0, "cont":100, "gam":100})),
             "anim_props": {},
@@ -85,8 +107,9 @@ class MainWindow(QMainWindow):
         self.load_animations()
         
         self.timer = QTimer(self)
+        self.timer.setTimerType(Qt.TimerType.PreciseTimer)
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(int(1000 / self.config.get("app", {}).get("fps", 30)))
+        self._apply_fps_runtime(self.target_fps, persist=False)
         
         start_web_server(self.command_queue, self.web_state, lambda: getattr(self, '_web_preview_qimg', None))
         
@@ -209,6 +232,10 @@ class MainWindow(QMainWindow):
         self.input_ip = QLineEdit(self.config.get("wled", {}).get("ip", "192.168.1.100"))
         self.input_w = QLineEdit(str(self.config.get("matrix", {}).get("width", 16)))
         self.input_h = QLineEdit(str(self.config.get("matrix", {}).get("height", 16)))
+        self.input_fps = QSpinBox()
+        self.input_fps.setRange(MIN_FPS, MAX_FPS)
+        self.input_fps.setValue(self.target_fps)
+        self.input_fps.setSuffix(" FPS")
         
         btn_save = QPushButton("Guardar y Conectar")
         btn_save.clicked.connect(self.save_and_apply)
@@ -216,6 +243,7 @@ class MainWindow(QMainWindow):
         config_layout.addRow("Dirección IP (WLED):", self.input_ip)
         config_layout.addRow("Ancho de Matriz (X):", self.input_w)
         config_layout.addRow("Alto de Matriz (Y):", self.input_h)
+        config_layout.addRow("FPS de Transmisión:", self.input_fps)
         config_layout.addRow("", btn_save)
         
         # Tab 2: Control Plugins y Parámetros
@@ -407,6 +435,10 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if len(self.active_animations) > 0 and self.current_anim_index < len(self.active_animations):
             self.active_animations[self.current_anim_index].on_inactive()
+        try:
+            self.sender.close()
+        except Exception:
+            pass
         super().closeEvent(event)
 
     def toggle_pause(self, checked):
@@ -420,6 +452,27 @@ class MainWindow(QMainWindow):
         else:
             self.btn_blackout.setText("⚫ Blackout OFF")
 
+    def _apply_fps_runtime(self, fps, persist=True):
+        fps = clamp_fps(fps, self.target_fps if hasattr(self, "target_fps") else 30)
+        self.target_fps = fps
+        self.preview_fps = min(15, self.target_fps)
+        self._preview_interval = 1.0 / max(1, self.preview_fps)
+        self._next_preview_update = 0.0
+        self.config.setdefault("app", {})["fps"] = fps
+
+        if hasattr(self, "input_fps"):
+            self.input_fps.blockSignals(True)
+            self.input_fps.setValue(fps)
+            self.input_fps.blockSignals(False)
+
+        if hasattr(self, "timer"):
+            interval_ms = max(1, int(round(1000.0 / fps)))
+            self.timer.start(interval_ms)
+
+        self.web_state.setdefault("connection", {})["fps"] = fps
+        if persist:
+            save_config(self.config)
+
     def save_and_apply(self):
         new_ip = self.input_ip.text()
         try:
@@ -428,19 +481,26 @@ class MainWindow(QMainWindow):
         except ValueError:
             QMessageBox.warning(self, "Error", "Deben ser números.")
             return
+        new_fps = clamp_fps(self.input_fps.value(), self.target_fps)
             
         self.config["wled"]["ip"] = new_ip
         self.config["matrix"]["width"] = new_w
         self.config["matrix"]["height"] = new_h
+        self._apply_fps_runtime(new_fps, persist=False)
         save_config(self.config)
         
         self.web_state["connection"] = {
             "ip": new_ip,
             "width": new_w,
             "height": new_h,
+            "fps": new_fps,
         }
         
         self.engine = MatrixEngine(self.config)
+        try:
+            self.sender.close()
+        except Exception:
+            pass
         self.sender = DDPSender(
             self.config.get("wled", {}).get("ip", "192.168.1.100"), 
             self.config.get("wled", {}).get("port", 4048)
@@ -522,9 +582,12 @@ class MainWindow(QMainWindow):
         
     def update_frame(self):
         # Process Web Commands
-        while not self.command_queue.empty():
+        max_cmds_per_frame = 50
+        cmds_processed = 0
+        while not self.command_queue.empty() and cmds_processed < max_cmds_per_frame:
             try:
                 cmd = self.command_queue.get_nowait()
+                cmds_processed += 1
                 action = cmd.get("action")
                 if action == "set_anim":
                     idx = cmd.get("index", 0)
@@ -543,12 +606,18 @@ class MainWindow(QMainWindow):
                     new_ip = cmd.get("ip", "")
                     new_w = cmd.get("width", 16)
                     new_h = cmd.get("height", 16)
+                    new_fps = clamp_fps(cmd.get("fps", self.target_fps), self.target_fps)
                     if new_ip:
                         self.config["wled"]["ip"] = new_ip
                     self.config["matrix"]["width"] = int(new_w)
                     self.config["matrix"]["height"] = int(new_h)
+                    self._apply_fps_runtime(new_fps, persist=False)
                     save_config(self.config)
                     self.engine = MatrixEngine(self.config)
+                    try:
+                        self.sender.close()
+                    except Exception:
+                        pass
                     self.sender = DDPSender(
                         self.config.get("wled", {}).get("ip", "192.168.1.100"),
                         self.config.get("wled", {}).get("port", 4048)
@@ -558,6 +627,7 @@ class MainWindow(QMainWindow):
                         "ip": self.config["wled"]["ip"],
                         "width": self.config["matrix"]["width"],
                         "height": self.config["matrix"]["height"],
+                        "fps": self.target_fps,
                     }
                 elif action == "set_color_correction":
                     cc = self.config.get("color_correction", {})
@@ -617,27 +687,10 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 print(f"Error procesando comando web: {e}")
                 
-        # Update Web State
+        # Update lightweight state every frame
         self.web_state["is_paused"] = self.is_paused
         self.web_state["is_blackout"] = self.is_blackout
         self.web_state["current_anim_index"] = self.current_anim_index
-        self.web_state["animations"] = [a.get_name() for a in self.active_animations]
-
-        # Build anim_props from live plugin instances
-        props_dict = {}
-        for anim in self.active_animations:
-            props_dict[anim.__class__.__name__] = dict(anim.props)
-        self.web_state["anim_props"] = props_dict
-
-        # Capture region info for screen capture preview on web
-        sc_props = props_dict.get("ScreenCaptureAnim", {})
-        if sc_props:
-            self.web_state["capture_region"] = {
-                "x": sc_props.get("pos_x", 0),
-                "y": sc_props.get("pos_y", 0),
-                "w": sc_props.get("width", 300),
-                "h": sc_props.get("height", 200),
-            }
 
         if not self.is_paused:
             self.t += 1
@@ -659,15 +712,36 @@ class MainWindow(QMainWindow):
             self.sender.send_frame(black_data)
         else:
             self.sender.send_frame(corrected_data)
-            
-        w, h = self.engine.width, self.engine.height
-        qimg = QImage(pixel_data, w, h, w * 3, QImage.Format.Format_RGB888)
-        self.preview_display.setPixmap(QPixmap.fromImage(qimg).scaled(
-            self.preview_display.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.FastTransformation
-        ))
-        
-        # Store QImage for web preview
-        self._web_preview_qimg = qimg.copy()
+
+        now = time.monotonic()
+        if now >= self._next_preview_update:
+            w, h = self.engine.width, self.engine.height
+            qimg = QImage(pixel_data, w, h, w * 3, QImage.Format.Format_RGB888)
+            self.preview_display.setPixmap(QPixmap.fromImage(qimg).scaled(
+                self.preview_display.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.FastTransformation
+            ))
+            # Store QImage for web preview
+            self._web_preview_qimg = qimg.copy()
+            self._next_preview_update = now + self._preview_interval
+
+        if now >= self._next_web_state_sync:
+            self.web_state["animations"] = [a.get_name() for a in self.active_animations]
+            self.web_state["tx_stats"] = self.sender.get_stats()
+
+            props_dict = {}
+            for anim in self.active_animations:
+                props_dict[anim.__class__.__name__] = dict(anim.props)
+            self.web_state["anim_props"] = props_dict
+
+            sc_props = props_dict.get("ScreenCaptureAnim", {})
+            if sc_props:
+                self.web_state["capture_region"] = {
+                    "x": sc_props.get("pos_x", 0),
+                    "y": sc_props.get("pos_y", 0),
+                    "w": sc_props.get("width", 300),
+                    "h": sc_props.get("height", 200),
+                }
+            self._next_web_state_sync = now + self._web_state_sync_interval
         
         pygame.event.pump()
 
