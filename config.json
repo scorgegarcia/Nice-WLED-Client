@@ -1,0 +1,39 @@
+{
+    "wled": {
+        "ip": "192.168.0.110",
+        "port": 4048
+    },
+    "matrix": {
+        "width": 96,
+        "height": 10
+    },
+    "app": {
+        "fps": 30,
+        "preview": false,
+        "preview_scale": 30
+    },
+    "capture": {
+        "x": 657,
+        "y": 504,
+        "w": 1568,
+        "h": 883
+    },
+    "color_correction": {
+        "r": 255,
+        "g": 255,
+        "b": 255,
+        "bri": 0,
+        "cont": 100,
+        "gam": 100,
+        "last_profile": ""
+    },
+    "active_plugins": {
+        "TestPattern": true,
+        "MidiKeyboard": true,
+        "Rainbow": true,
+        "ScreenCaptureAnim": true,
+        "PulseColor": true,
+        "AuroraBoreal": true,
+        "HitannaNeonWave": true
+    }
+}

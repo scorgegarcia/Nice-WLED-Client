@@ -1,0 +1,1965 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="Scorge LED Controller - Panel de control para matrices LED WLED">
+    <title>WLED Controller</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0b0f;
+            --bg-secondary: #12131a;
+            --surface: rgba(22, 24, 32, 0.8);
+            --surface-solid: #16181f;
+            --surface-hover: rgba(35, 38, 50, 0.95);
+            --surface-border: rgba(255, 255, 255, 0.06);
+            --text-color: #b8bcc8;
+            --text-muted: #6b7084;
+            --text-bright: #e2e4ea;
+            --accent: #45a29e;
+            --accent-glow: rgba(69, 162, 158, 0.4);
+            --active-bg: #66fcf1;
+            --active-text: #0a0b0f;
+            --danger: #ff4b5c;
+            --danger-glow: rgba(255, 75, 92, 0.35);
+            --warning: #ffb320;
+            --warning-glow: rgba(255, 179, 32, 0.35);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --topbar-h: 56px;
+            --bottombar-h: 110px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===== TOP BAR ===== */
+        .top-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: var(--topbar-h);
+            background: rgba(10, 11, 15, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--surface-border);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+        }
+        .top-bar .bar-row {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            gap: 10px;
+        }
+        .top-bar .preview-wrap {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+        }
+
+        .hamburger-btn {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--active-bg);
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: var(--radius-sm);
+            flex-shrink: 0;
+            line-height: 1;
+        }
+        .hamburger-btn:active { background: rgba(102,252,241,0.08); }
+
+        .top-bar h1 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--active-bg);
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #matrix-preview {
+            height: 38px;
+            width: auto;
+            max-width: 45vw;
+            background-color: #000;
+            border: 1.5px solid rgba(102, 252, 241, 0.3);
+            border-radius: 6px;
+            object-fit: contain;
+            image-rendering: pixelated;
+            cursor: pointer;
+        }
+
+        /* ===== PREVIEW MODAL ===== */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            inset: 0;
+            background: rgba(5, 5, 10, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            align-items: center;
+            justify-content: center;
+        }
+        .preview-modal.open {
+            display: flex;
+        }
+        .preview-modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-xl);
+            width: 92%;
+            max-width: 440px;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 40px rgba(69, 162, 158, 0.15);
+            padding: 20px;
+            position: relative;
+        }
+        .preview-modal-close {
+            position: absolute;
+            top: 14px; right: 16px;
+            color: var(--text-muted);
+            font-size: 1.6rem;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+        }
+        .preview-modal-close:active { background: rgba(255,255,255,0.06); }
+        .preview-modal-header h3 {
+            margin: 0 0 14px 0;
+            color: var(--active-bg);
+            font-size: 1rem;
+            font-weight: 700;
+            text-align: center;
+        }
+        .preview-modal-body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            border: 1.5px solid rgba(102, 252, 241, 0.15);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            aspect-ratio: 1 / 1;
+        }
+        #modal-matrix-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            image-rendering: pixelated;
+        }
+
+        .mobile-preview-container {
+            display: none;
+        }
+
+        /* ===== SIDE MENU ===== */
+        .side-menu-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 300;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        .side-menu-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100%;
+            background: rgba(14, 15, 20, 0.98);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            z-index: 301;
+            transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--surface-border);
+        }
+        .side-menu.open { left: 0; }
+
+        .side-menu-header {
+            display: flex;
+            align-items: center;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--surface-border);
+        }
+        .side-menu-header h2 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--active-bg);
+        }
+
+        .side-menu-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 13px 22px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            color: var(--text-color);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .nav-item:active {
+            background: rgba(102,252,241,0.05);
+        }
+        .nav-item.active {
+            background: rgba(102,252,241,0.08);
+            border-left-color: var(--active-bg);
+            color: var(--active-bg);
+            font-weight: 600;
+        }
+        .nav-item .nav-icon {
+            font-size: 1.2rem;
+            width: 26px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content {
+            padding-top: calc(var(--topbar-h) + 16px);
+            padding-bottom: calc(var(--bottombar-h) + 16px);
+            padding-left: 16px;
+            padding-right: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tab-panel {
+            display: none;
+            width: 100%;
+            max-width: 900px;
+        }
+        .tab-panel.active { display: block; }
+
+        /* ===== TAB: EFECTOS ===== */
+        /* Desktop preview container in Efectos tab */
+        .efectos-preview-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            cursor: pointer;
+        }
+        .efectos-preview-section img {
+            max-width: 100%;
+            max-height: 220px;
+            height: auto;
+            object-fit: contain;
+            image-rendering: pixelated;
+            background: #000;
+            border: 1.5px solid rgba(102, 252, 241, 0.2);
+            border-radius: var(--radius-sm);
+        }
+
+        .stream-deck-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+        }
+        .grid-anim {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+            gap: 14px;
+        }
+
+        /* ===== EFFECT GRID BUTTONS ===== */
+        .btn {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-md);
+            color: var(--text-color);
+            padding: 16px 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1 / 1;
+            position: relative;
+            overflow: hidden;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn:active {
+            background: var(--surface-hover);
+        }
+        .btn.active-anim {
+            background: var(--active-bg);
+            color: var(--active-text);
+            border-color: var(--active-bg);
+            box-shadow: 0 0 16px var(--accent-glow);
+        }
+        /* Transport buttons — NO animations, instant feedback */
+        .btn-transport {
+            aspect-ratio: auto;
+            padding: 12px 32px;
+            font-size: 1rem;
+            min-width: 150px;
+            border-radius: var(--radius-md);
+        }
+        .btn-pause.active {
+            background: var(--warning);
+            color: var(--active-text);
+            border-color: var(--warning);
+            box-shadow: 0 0 12px var(--warning-glow);
+        }
+        .btn-blackout.active {
+            background: var(--danger);
+            color: #fff;
+            border-color: var(--danger);
+            box-shadow: 0 0 12px var(--danger-glow);
+        }
+        /* NO pulse-danger keyframes — removed for performance */
+        .icon { font-size: 1.6rem; margin-bottom: 6px; display: block; line-height: 1; }
+
+        /* ===== GLOBAL CONTROLS (BOTTOM BAR) ===== */
+        .global-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            justify-content: center;
+            padding: 12px 24px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: rgba(10, 11, 15, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--surface-border);
+            z-index: 200;
+        }
+        .transport-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .dimmer-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 360px;
+            margin: 0 auto;
+        }
+        .dimmer-label {
+            font-size: 1rem;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: var(--active-bg);
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 8px rgba(102,252,241,0.4);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.12);
+            border-radius: 2px;
+        }
+
+        /* ===== FORM STYLES ===== */
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-bright);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .form-group input[type="text"],
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--active-bg);
+            box-shadow: 0 0 0 2px rgba(102,252,241,0.15);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .form-row label {
+            margin-bottom: 0;
+            min-width: 100px;
+            font-size: 0.82rem;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .slider-row label {
+            min-width: 130px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--text-color);
+        }
+        .slider-row input[type="range"] { flex: 1; }
+        .slider-row .slider-value {
+            min-width: 42px;
+            text-align: right;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--active-bg);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .btn-primary {
+            background: var(--active-bg);
+            color: var(--active-text);
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 10px 22px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-primary:active {
+            opacity: 0.85;
+        }
+
+        .btn-secondary {
+            background: var(--surface);
+            color: var(--text-color);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-sm);
+            padding: 10px 18px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .btn-secondary:active {
+            background: var(--surface-hover);
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card h3 {
+            margin: 0 0 14px 0;
+            color: var(--active-bg);
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        /* ===== TAB: PANEL DEL EFECTO ===== */
+        .effect-selector {
+            margin-bottom: 16px;
+        }
+        .effect-selector select {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .effect-selector select:focus {
+            outline: none;
+            border-color: var(--active-bg);
+        }
+        .effect-params {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .effect-params .param-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            flex-wrap: wrap;
+        }
+        .effect-params .param-row:last-child { border-bottom: none; }
+        .effect-params .param-label {
+            min-width: 150px;
+            flex-shrink: 0;
+            font-size: 0.82rem;
+            color: var(--text-color);
+            font-weight: 500;
+        }
+        .effect-params .param-value {
+            min-width: 36px;
+            text-align: right;
+            font-weight: 700;
+            color: var(--active-bg);
+            font-size: 0.82rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .effect-params input[type="range"] { flex: 1; min-width: 80px; }
+        .effect-params .param-text-input {
+            flex: 1;
+            min-width: 100px;
+            padding: 6px 10px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 6px;
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 0.82rem;
+        }
+        .effect-params .param-text-input:focus {
+            outline: none;
+            border-color: var(--active-bg);
+        }
+
+        .color-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .color-input-group input[type="color"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 30px;
+            height: 30px;
+            border: 1.5px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 2px;
+            flex-shrink: 0;
+        }
+        .color-input-group input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        .color-input-group input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 3px;
+        }
+        .color-input-group input[type="color"]::-moz-color-swatch {
+            border: none;
+            border-radius: 3px;
+        }
+        .color-input-group .color-hex {
+            font-family: 'Inter', monospace;
+            font-size: 0.8rem;
+            color: var(--text-color);
+            min-width: 56px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 6px;
+            padding: 4px 8px;
+            flex: 1;
+        }
+        .effect-params .param-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+        }
+        .effect-params .param-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--active-bg);
+            cursor: pointer;
+        }
+        .effect-params .param-checkbox label {
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .effect-params .slider-num-input {
+            width: 68px;
+            padding: 4px 6px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: 6px;
+            color: var(--active-bg);
+            font-family: 'Inter', monospace;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .effect-params .slider-num-input:focus {
+            outline: none;
+            border-color: var(--active-bg);
+        }
+
+        /* ===== CAPTURE PREVIEW ===== */
+        .capture-preview-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+        .capture-canvas {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 16 / 9;
+            background: linear-gradient(135deg, #111320 0%, #151828 50%, #0d1530 100%);
+            border-radius: var(--radius-md);
+            border: 1.5px solid var(--surface-border);
+            overflow: hidden;
+        }
+        .capture-overlay-label {
+            position: absolute;
+            top: 10px; left: 14px;
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.25);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .capture-region-box {
+            position: absolute;
+            border: 2px solid var(--danger);
+            background: rgba(255, 75, 92, 0.06);
+            box-shadow: 0 0 12px rgba(255, 75, 92, 0.2);
+            min-width: 8px;
+            min-height: 8px;
+        }
+        .capture-region-box::after {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            border: 1px solid rgba(255, 75, 92, 0.25);
+            border-radius: 2px;
+        }
+        .capture-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+        }
+        .capture-info-item {
+            background: var(--surface);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: 'Inter', monospace;
+            color: var(--text-color);
+        }
+        .capture-info-item b {
+            color: var(--active-bg);
+        }
+
+        /* ===== TAB: CORRECCION DE COLOR ===== */
+        .color-tutorial {
+            font-size: 0.78rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.02);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--surface-border);
+        }
+        .color-tutorial b { color: var(--text-bright); }
+        .profile-section {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .profile-section select {
+            flex: 1;
+            min-width: 130px;
+            padding: 8px 12px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+        .profile-section input[type="text"] {
+            width: 140px;
+            padding: 8px 12px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-color);
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+        .profile-section input[type="text"]:focus {
+            outline: none;
+            border-color: var(--active-bg);
+        }
+
+        /* ===== TAB: GESTOR PLUGINS ===== */
+        .plugin-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius-sm);
+            margin-bottom: 6px;
+        }
+        .plugin-item:active { background: var(--surface-hover); }
+        .plugin-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--active-bg);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .plugin-item .plugin-name {
+            font-weight: 600;
+            font-size: 0.88rem;
+        }
+        .plugin-item .plugin-class {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-left: auto;
+            font-family: 'Inter', monospace;
+        }
+
+        /* ===== SECTION TITLES ===== */
+        .tab-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--active-bg);
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--surface-border);
+        }
+
+        /* ========================================= */
+        /* ===== RESPONSIVE MOBILE (<=600px) ====== */
+        /* ========================================= */
+        @media (max-width: 600px) {
+            :root {
+                --topbar-h: 48px;
+                --bottombar-h: 100px;
+            }
+
+            .top-bar {
+                padding: 0 10px;
+            }
+            .top-bar h1 { font-size: 0.82rem; }
+            #matrix-preview { height: 32px; max-width: 30vw; }
+
+            /* Hide top-bar preview only in Efectos tab on mobile */
+            body[data-active-tab="efectos"] .top-bar #matrix-preview {
+                display: none;
+            }
+
+            /* Hide the desktop preview section always on mobile */
+            .efectos-preview-section {
+                display: none !important;
+            }
+
+            /* Mobile sticky preview container */
+            .mobile-preview-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                position: sticky;
+                top: var(--topbar-h);
+                z-index: 150;
+                background: rgba(18, 19, 26, 0.94);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+                padding: 10px 12px;
+                width: 100%;
+                box-sizing: border-box;
+                border-bottom: 1px solid var(--surface-border);
+                margin-bottom: 12px;
+            }
+            #mobile-matrix-preview {
+                width: 100%;
+                height: auto;
+                max-height: 150px;
+                background: #000;
+                border: 1.5px solid rgba(102, 252, 241, 0.25);
+                border-radius: var(--radius-sm);
+                object-fit: contain;
+                image-rendering: pixelated;
+                cursor: pointer;
+            }
+
+            .main-content {
+                padding-top: calc(var(--topbar-h) + 8px);
+                padding-bottom: calc(var(--bottombar-h) + 8px);
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+
+            .card {
+                padding: 14px;
+                border-radius: var(--radius-md);
+                margin-bottom: 10px;
+            }
+            .card h3 {
+                font-size: 0.85rem;
+                margin-bottom: 10px;
+            }
+
+            .stream-deck-container {
+                padding: 12px;
+                border-radius: var(--radius-lg);
+            }
+            .grid-anim {
+                grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+                gap: 8px;
+            }
+            .btn {
+                padding: 10px 4px;
+                font-size: 0.72rem;
+                border-radius: var(--radius-sm);
+            }
+            .icon { font-size: 1.3rem; margin-bottom: 4px; }
+
+            /* Effect Params on mobile */
+            .effect-params .param-label {
+                min-width: 100%;
+                margin-bottom: 2px;
+            }
+            .effect-params .param-row {
+                gap: 6px;
+                padding: 6px 0;
+            }
+            .effect-params .param-value {
+                min-width: auto;
+                margin-left: auto;
+            }
+
+            .slider-row {
+                flex-wrap: wrap;
+                gap: 4px;
+                margin-bottom: 10px;
+            }
+            .slider-row label {
+                min-width: 100%;
+                font-size: 0.78rem;
+            }
+
+            /* Bottom bar mobile */
+            .transport-buttons { gap: 8px; }
+            .btn-transport {
+                padding: 10px 16px;
+                font-size: 0.88rem;
+                min-width: 110px;
+            }
+            .global-controls {
+                padding: 8px 12px;
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+                gap: 6px;
+            }
+
+            /* Color correction mobile */
+            .color-tutorial {
+                font-size: 0.72rem;
+                padding: 10px;
+            }
+            .profile-section {
+                gap: 6px;
+            }
+            .profile-section select,
+            .profile-section input[type="text"] {
+                min-width: 0;
+                flex: 1;
+                font-size: 0.8rem;
+                padding: 8px 10px;
+            }
+
+            /* Connection form mobile */
+            .form-group label {
+                font-size: 0.78rem;
+            }
+            .form-group input[type="text"],
+            .form-group input[type="number"] {
+                font-size: 0.88rem;
+                padding: 9px 12px;
+            }
+
+            /* Plugin items mobile */
+            .plugin-item {
+                padding: 10px 12px;
+                gap: 10px;
+            }
+            .plugin-item .plugin-class {
+                font-size: 0.65rem;
+            }
+
+            /* Effect selector mobile */
+            .effect-selector select {
+                font-size: 0.88rem;
+                padding: 9px 12px;
+            }
+
+            /* Side menu mobile */
+            .side-menu { width: 260px; left: -260px; }
+            .nav-item { padding: 12px 18px; font-size: 0.85rem; }
+            .nav-item .nav-icon { font-size: 1.1rem; }
+        }
+
+        /* ===== TABLET BREAKPOINT ===== */
+        @media (min-width: 601px) and (max-width: 900px) {
+            .grid-anim {
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                gap: 12px;
+            }
+        }
+
+        /* Desktop hover effects (touch devices don't get :hover) */
+        @media (hover: hover) {
+            .hamburger-btn:hover { background: rgba(102,252,241,0.08); }
+            .btn:hover {
+                background: var(--surface-hover);
+                border-color: rgba(255,255,255,0.1);
+            }
+            .btn.active-anim:hover {
+                background: var(--active-bg);
+                border-color: var(--active-bg);
+            }
+            .nav-item:hover {
+                background: rgba(102,252,241,0.05);
+                color: var(--text-bright);
+            }
+            .btn-primary:hover {
+                box-shadow: 0 0 12px var(--accent-glow);
+            }
+            .btn-secondary:hover {
+                background: var(--surface-hover);
+            }
+            .plugin-item:hover { background: var(--surface-hover); }
+            .preview-modal-close:hover { color: var(--active-bg); background: rgba(255,255,255,0.06); }
+            #matrix-preview:hover { border-color: rgba(102, 252, 241, 0.5); }
+        }
+    </style>
+</head>
+<body data-active-tab="efectos">
+
+    <!-- TOP BAR -->
+    <div class="top-bar" id="top-bar">
+        <div class="bar-row">
+            <button class="hamburger-btn" onclick="toggleMenu()">&#9776;</button>
+            <h1>Scorge Led Controller</h1>
+            <div class="preview-wrap">
+                <img id="matrix-preview" src="" alt="Preview" onclick="togglePreviewExpand()" />
+            </div>
+        </div>
+    </div>
+
+    <!-- SIDE MENU OVERLAY -->
+    <div class="side-menu-overlay" id="menu-overlay" onclick="toggleMenu()"></div>
+
+    <!-- SIDE MENU -->
+    <div class="side-menu" id="side-menu">
+        <div class="side-menu-header">
+            <h2>Navegacion</h2>
+        </div>
+        <div class="side-menu-nav">
+            <div class="nav-item active" data-tab="efectos" onclick="switchTab('efectos')">
+                <span class="nav-icon">✨</span> Efectos
+            </div>
+            <div class="nav-item" data-tab="conexion" onclick="switchTab('conexion')">
+                <span class="nav-icon">🔌</span> Ajustes de Conexion
+            </div>
+            <div class="nav-item" data-tab="panel-efecto" onclick="switchTab('panel-efecto')">
+                <span class="nav-icon">🎛️</span> Panel del Efecto
+            </div>
+            <div class="nav-item" data-tab="color-correction" onclick="switchTab('color-correction')">
+                <span class="nav-icon">🎨</span> Correccion de Color
+            </div>
+            <div class="nav-item" data-tab="gestor-plugins" onclick="switchTab('gestor-plugins')">
+                <span class="nav-icon">📦</span> Gestor de Plugins
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+
+        <!-- TAB: EFECTOS -->
+        <div class="tab-panel active" id="tab-efectos">
+            <!-- Mobile-only sticky preview -->
+            <div class="mobile-preview-container">
+                <img id="mobile-matrix-preview" src="" alt="Preview" onclick="togglePreviewExpand()" />
+            </div>
+            <!-- Desktop preview section (hidden on mobile via CSS) -->
+            <div class="efectos-preview-section" id="efectos-preview-section" onclick="togglePreviewExpand()">
+                <img id="efectos-preview-img" src="" alt="Vista Previa del Efecto" />
+            </div>
+            <div class="stream-deck-container">
+                <div class="grid-anim" id="anim-grid"></div>
+            </div>
+        </div>
+
+        <!-- TAB: AJUSTES DE CONEXION -->
+        <div class="tab-panel" id="tab-conexion">
+            <div class="card">
+                <h3>Conexion WLED</h3>
+                <div class="form-group">
+                    <label>Direccion IP (WLED)</label>
+                    <input type="text" id="conn-ip" placeholder="192.168.0.110" />
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <div class="form-group" style="flex:1">
+                        <label>Ancho de Matriz (X)</label>
+                        <input type="number" id="conn-width" min="1" max="256" value="16" />
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label>Alto de Matriz (Y)</label>
+                        <input type="number" id="conn-height" min="1" max="256" value="16" />
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="saveConnection()">Guardar y Conectar</button>
+            </div>
+        </div>
+
+        <!-- TAB: PANEL DEL EFECTO -->
+        <div class="tab-panel" id="tab-panel-efecto">
+            <div class="card">
+                <h3>Seleccionar Efecto</h3>
+                <div class="effect-selector">
+                    <select id="effect-select" onchange="loadEffectParams()"></select>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Parametros del Efecto</h3>
+                <div class="effect-params" id="effect-params-container">
+                    <p style="color:var(--text-muted); font-size:0.82rem;">Selecciona un efecto para ver sus parametros.</p>
+                </div>
+            </div>
+            <div class="card" id="capture-preview-card" style="display:none;">
+                <h3>Region de Captura</h3>
+                <div class="capture-preview-wrapper">
+                    <div class="capture-canvas" id="capture-canvas">
+                        <div class="capture-overlay-label">Pantalla Completa</div>
+                        <div class="capture-region-box" id="capture-region-box"></div>
+                    </div>
+                </div>
+                <div class="capture-info" id="capture-info"></div>
+            </div>
+        </div>
+
+        <!-- TAB: CORRECCION DE COLOR -->
+        <div class="tab-panel" id="tab-color-correction">
+            <div class="card">
+                <h3>Calibracion de Color</h3>
+                <div class="color-tutorial">
+                    <b>Límites Base (R, G, B):</b> Las tiras baratas tienen un blanco feo. Ajusta tu peor canal aquí hasta que la escala blanca parezca nieve.<br/>
+                    <b>Brillo:</b> Introduce o quita voltajes básicos en todos los píxeles.<br/>
+                    <b>Contraste:</b> Extiende luces y oscurece sombras. ¡Subirlo embellece colores vivos!<br/>
+                    <b>Gamma:</b> Sube a ~2.2 (220%) para simular un degradado realista ultra-suave natural.
+                </div>
+                <div id="color-sliders"></div>
+            </div>
+            <div class="card">
+                <h3>Perfiles de Calibracion</h3>
+                <div class="profile-section">
+                    <select id="profile-select"></select>
+                    <button class="btn-secondary" onclick="loadProfile()">Cargar</button>
+                    <input type="text" id="new-profile-name" placeholder="Nombre perfil nuevo" />
+                    <button class="btn-primary" onclick="saveProfile()">Guardar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: GESTOR DE PLUGINS -->
+        <div class="tab-panel" id="tab-gestor-plugins">
+            <div class="card">
+                <h3>Administrador Global de Plugins</h3>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:14px;">Marca los plugins que quieres que estén disponibles en el Panel de Efecto.</p>
+                <div id="plugins-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIXED BOTTOM BAR -->
+    <div class="global-controls">
+        <div class="transport-buttons">
+            <button class="btn btn-transport btn-pause" id="btn-pause" onclick="sendCommand('toggle_pause')">
+                <span class="icon">⏸</span> Pausa
+            </button>
+            <button class="btn btn-transport btn-blackout" id="btn-blackout" onclick="sendCommand('toggle_blackout')">
+                <span class="icon">⚫</span> Blackout
+            </button>
+        </div>
+        <div class="dimmer-container">
+            <span class="dimmer-label">☀️</span>
+            <input type="range" id="master-dimmer" min="0" max="100" value="100" oninput="sendDimmer(this.value)">
+        </div>
+    </div>
+
+    <script>
+        // Prevent double-tap zoom on mobile
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(e) {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, { passive: false });
+
+        // ===== STATE =====
+        let animations = [];
+        let currentIndex = -1;
+        let isPaused = false;
+        let isBlackout = false;
+        let appState = {};
+
+        // ===== MENU =====
+        function toggleMenu() {
+            document.getElementById('side-menu').classList.toggle('open');
+            document.getElementById('menu-overlay').classList.toggle('open');
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            document.querySelector(`.nav-item[data-tab="${tabId}"]`).classList.add('active');
+            toggleMenu();
+
+            // Track active tab on body for CSS styling
+            document.body.setAttribute('data-active-tab', tabId);
+
+            if (tabId === 'panel-efecto') { populateEffectSelector(); loadEffectParams(); }
+            if (tabId === 'gestor-plugins') renderPlugins();
+            if (tabId === 'color-correction') renderColorSliders();
+            if (tabId === 'conexion') loadConnectionSettings();
+        }
+
+        // ===== ANIMATION GRID =====
+        const animGrid = document.getElementById('anim-grid');
+
+        function getThumbnailHTML(name) {
+            name = name.toLowerCase();
+            const getSvg = (paths, color) => `<svg viewBox="0 0 24 24" width="48" height="48" stroke="${color}" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+            if(name.includes('rainbow') || name.includes('arcoiris')) {
+                 return `<div style="width: 48px; height: 48px; border-radius: 12px; background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff); margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);"></div>`;
+            }
+            if(name.includes('midi') || name.includes('teclado') || name.includes('music') || name.includes('piano')) {
+                 return `<div style="margin-bottom: 12px;">${getSvg('<rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="4" x2="6" y2="12"></line><line x1="10" y1="4" x2="10" y2="12"></line><line x1="14" y1="4" x2="14" y2="12"></line><line x1="18" y1="4" x2="18" y2="12"></line><line x1="2" y1="12" x2="22" y2="12"></line>', 'var(--active-bg)')}</div>`;
+            }
+            if(name.includes('screen') || name.includes('pantalla') || name.includes('capture')) {
+                 return `<div style="margin-bottom: 12px;">${getSvg('<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line>', '#fca311')}</div>`;
+            }
+            if(name.includes('test') || name.includes('patron')) {
+                 return `<div style="width: 48px; height: 48px; border-radius: 12px; background: conic-gradient(red 0 90deg, lime 90deg 180deg, blue 180deg 270deg, white 270deg 360deg); margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);"></div>`;
+            }
+            if(name.includes('solid') || name.includes('color') || name.includes('pulse')) {
+                 return `<div style="margin-bottom: 12px;">${getSvg('<path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>', '#ff4b4b')}</div>`;
+            }
+            return `<div style="margin-bottom: 12px;">${getSvg('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>', '#c5c6c7')}</div>`;
+        }
+
+        function createAnimButtons() {
+            animGrid.innerHTML = '';
+            animations.forEach((anim, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `btn ${idx === currentIndex ? 'active-anim' : ''}`;
+                const iconContainer = document.createElement('div');
+                iconContainer.innerHTML = getThumbnailHTML(anim);
+                const text = document.createElement('span');
+                text.innerText = anim;
+                btn.appendChild(iconContainer);
+                btn.appendChild(text);
+                btn.onclick = () => {
+                    sendCommand('set_anim', { index: idx });
+                    if (appState && appState.animations && appState.animations[idx]) {
+                        selectedEffectForPanel = appState.animations[idx];
+                        selectedEffectIdxForPanel = idx;
+                    }
+                };
+                animGrid.appendChild(btn);
+            });
+        }
+
+        function updateUI() {
+            const btns = animGrid.querySelectorAll('.btn');
+            btns.forEach((b, idx) => {
+                if (idx === currentIndex) b.classList.add('active-anim');
+                else b.classList.remove('active-anim');
+            });
+
+            if(isPaused) {
+                btnPause.classList.add('active');
+                btnPause.innerHTML = '<span class="icon">▶</span> Reanudar';
+            } else {
+                btnPause.classList.remove('active');
+                btnPause.innerHTML = '<span class="icon">⏸</span> Pausa';
+            }
+            if(isBlackout) {
+                btnBlackout.classList.add('active');
+                btnBlackout.innerHTML = '<span class="icon">🔴</span> Blackout ON';
+            } else {
+                btnBlackout.classList.remove('active');
+                btnBlackout.innerHTML = '<span class="icon">⚫</span> Blackout';
+            }
+        }
+
+        const btnPause = document.getElementById('btn-pause');
+        const btnBlackout = document.getElementById('btn-blackout');
+
+        // ===== CONNECTION SETTINGS =====
+        function loadConnectionSettings() {
+            if (appState && appState.connection) {
+                document.getElementById('conn-ip').value = appState.connection.ip || '';
+                document.getElementById('conn-width').value = appState.connection.width || 16;
+                document.getElementById('conn-height').value = appState.connection.height || 16;
+            }
+        }
+
+        function saveConnection() {
+            const ip = document.getElementById('conn-ip').value.trim();
+            const w = parseInt(document.getElementById('conn-width').value) || 16;
+            const h = parseInt(document.getElementById('conn-height').value) || 16;
+            fetch('/api/connection', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip, width: w, height: h })
+            });
+        }
+
+        // ===== EFFECT PANEL =====
+        let selectedEffectForPanel = null;
+        let selectedEffectIdxForPanel = null;
+        const knownParamDefs = {};
+
+        function buildParamDefs() {
+            knownParamDefs['Rainbow'] = [
+                { type: 'slider', key: 'speed', label: 'Velocidad del Efecto', min: 1, max: 40 },
+                { type: 'checkbox', key: 'diagonal', label: 'Direccion Diagonal' }
+            ];
+            knownParamDefs['AuroraBoreal'] = [
+                { type: 'slider', key: 'speed', label: 'Velocidad', min: 1, max: 30 },
+                { type: 'slider', key: 'wave_size', label: 'Tamano de onda', min: 1, max: 30 },
+                { type: 'slider', key: 'brightness', label: 'Brillo interno', min: 5, max: 100 },
+                { type: 'slider', key: 'sparkle_amount', label: 'Cantidad de destellos', min: 0, max: 60 },
+                { type: 'checkbox', key: 'sparkles', label: 'Activar destellos' },
+                { type: 'color', key: 'color_a', label: 'Color A' },
+                { type: 'color', key: 'color_b', label: 'Color B' },
+                { type: 'color', key: 'color_c', label: 'Color C' }
+            ];
+            knownParamDefs['HitannaNeonWave'] = [
+                { type: 'slider', key: 'speed', label: 'Velocidad', min: 1, max: 40 },
+                { type: 'slider', key: 'wave_height', label: 'Altura de onda', min: 10, max: 100 },
+                { type: 'slider', key: 'thickness', label: 'Grosor de linea', min: 1, max: 5 },
+                { type: 'slider', key: 'bar_amount', label: 'Intensidad de barras', min: 0, max: 100 },
+                { type: 'slider', key: 'glow', label: 'Glow / resplandor', min: 0, max: 100 },
+                { type: 'slider', key: 'beat', label: 'Pulso beat', min: 0, max: 100 },
+                { type: 'slider', key: 'sparkle_amount', label: 'Cantidad de destellos', min: 0, max: 40 },
+                { type: 'checkbox', key: 'bars', label: 'Barras tipo ecualizador' },
+                { type: 'checkbox', key: 'mirror', label: 'Modo espejo vertical' },
+                { type: 'checkbox', key: 'sparkles', label: 'Destellos neon' },
+                { type: 'color', key: 'color_a', label: 'Color A' },
+                { type: 'color', key: 'color_b', label: 'Color B' },
+                { type: 'color', key: 'color_c', label: 'Color C' },
+                { type: 'color', key: 'bg_color', label: 'Fondo' }
+            ];
+            knownParamDefs['NeonEqualizer'] = [
+                { type: 'slider', key: 'speed', label: 'Velocidad', min: 1, max: 40 },
+                { type: 'slider', key: 'bars', label: 'Cantidad de barras', min: 2, max: 32 },
+                { type: 'slider', key: 'intensity', label: 'Intensidad', min: 10, max: 100 },
+                { type: 'slider', key: 'trail', label: 'Estela / glow', min: 0, max: 100 },
+                { type: 'slider', key: 'sparkle_amount', label: 'Destellos', min: 0, max: 40 },
+                { type: 'checkbox', key: 'mirror', label: 'Modo espejo desde el centro' },
+                { type: 'checkbox', key: 'sparkles', label: 'Activar destellos' },
+                { type: 'color', key: 'color_a', label: 'Color A' },
+                { type: 'color', key: 'color_b', label: 'Color B' },
+                { type: 'color', key: 'color_c', label: 'Color C' }
+            ];
+            knownParamDefs['MidiKeyboard'] = [
+                { type: 'text', key: 'port', label: 'Puerto Entrada MIDI' },
+                { type: 'slider', key: 'start_key', label: 'Nota Inicio', min: 0, max: 127 },
+                { type: 'slider', key: 'end_key', label: 'Nota Fin', min: 0, max: 127 },
+                { type: 'slider', key: 'rows', label: 'Teclados Verticales (Filas)', min: 1, max: 10 },
+                { type: 'checkbox', key: 'start_top', label: 'Empezar primera nota desde la Cima' },
+                { type: 'checkbox', key: 'random_color', label: 'Usar Color de Disparo Aleatorio' },
+                { type: 'color', key: 'white_color', label: 'Tecla Blanca' },
+                { type: 'color', key: 'black_color', label: 'Tecla Negra' },
+                { type: 'color', key: 'press_color', label: 'Presionada' },
+                { type: 'color', key: 'bg_color', label: 'Fondo' }
+            ];
+            knownParamDefs['ScreenCaptureAnim'] = [
+                { type: 'slider-num', key: 'pos_x', label: 'Posicion X', min: 0, max: 3840 },
+                { type: 'slider-num', key: 'pos_y', label: 'Posicion Y', min: 0, max: 2160 },
+                { type: 'slider-num', key: 'width', label: 'Ancho', min: 50, max: 3840 },
+                { type: 'slider-num', key: 'height', label: 'Alto', min: 50, max: 2160 }
+            ];
+            knownParamDefs['PulseColor'] = [];
+            knownParamDefs['TestPattern'] = [];
+        }
+        buildParamDefs();
+
+        function getPluginClassName(displayName) {
+            const map = {
+                'Arcoiris Dinamico': 'Rainbow',
+                'Aurora Boreal': 'AuroraBoreal',
+                'Hitanna Neon Wave': 'HitannaNeonWave',
+                'Neon Equalizer': 'NeonEqualizer',
+                'Teclado Piano Estructurado': 'MidiKeyboard',
+                'PulseColor': 'PulseColor',
+                'TestPattern': 'TestPattern',
+                'Capturar Pantalla': 'ScreenCaptureAnim',
+                'ScreenCaptureAnim': 'ScreenCaptureAnim',
+            };
+            return map[displayName] || displayName;
+        }
+
+        function populateEffectSelector() {
+            const sel = document.getElementById('effect-select');
+            sel.innerHTML = '';
+            if (!animations || animations.length === 0) {
+                sel.innerHTML = '<option>No hay efectos disponibles</option>';
+                return;
+            }
+            animations.forEach((name, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = name;
+                if (idx === currentIndex) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            if (selectedEffectIdxForPanel !== null && selectedEffectIdxForPanel < animations.length) {
+                sel.value = selectedEffectIdxForPanel;
+            }
+        }
+
+        function loadEffectParams() {
+            const sel = document.getElementById('effect-select');
+            const idx = parseInt(sel.value);
+            selectedEffectIdxForPanel = idx;
+            selectedEffectForPanel = animations[idx] || null;
+
+            // Switch to the selected effect (like desktop behavior)
+            if (idx !== currentIndex && idx >= 0) {
+                sendCommand('set_anim', { index: idx });
+            }
+
+            const container = document.getElementById('effect-params-container');
+            container.innerHTML = '';
+
+            if (!selectedEffectForPanel) {
+                container.innerHTML = '<p style="color:var(--text-muted); font-size:0.82rem;">Selecciona un efecto.</p>';
+                return;
+            }
+
+            const pluginClass = getPluginClassName(selectedEffectForPanel);
+            const props = (appState && appState.anim_props && appState.anim_props[pluginClass]) || {};
+            const params = knownParamDefs[pluginClass] || [];
+
+            if (params.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted); font-size:0.82rem;">Este efecto no tiene parametros configurables.</p>';
+                return;
+            }
+
+            params.forEach(p => {
+                if (p.type === 'slider') {
+                    const row = document.createElement('div');
+                    row.className = 'param-row';
+                    const val = props[p.key] ?? (p.min + p.max) / 2;
+                    row.innerHTML = `
+                        <span class="param-label">${p.label}</span>
+                        <input type="range" min="${p.min}" max="${p.max}" value="${val}" 
+                               data-plugin="${pluginClass}" data-key="${p.key}" data-type="slider"
+                               oninput="this.nextElementSibling.textContent=this.value"
+                               onchange="updateAnimProp('${pluginClass}','${p.key}',parseInt(this.value))" />
+                        <span class="param-value">${val}</span>
+                    `;
+                    container.appendChild(row);
+                } else if (p.type === 'slider-num') {
+                    const row = document.createElement('div');
+                    row.className = 'param-row';
+                    const val = props[p.key] ?? Math.round((p.min + p.max) / 2);
+                    row.innerHTML = `
+                        <span class="param-label">${p.label}</span>
+                        <input type="range" min="${p.min}" max="${p.max}" value="${val}" 
+                               data-plugin="${pluginClass}" data-key="${p.key}" data-type="slider-num"
+                               oninput="syncSliderNumVisual(this)"
+                               onchange="onSliderNumRelease(this)" />
+                        <input type="number" class="slider-num-input" value="${val}" min="${p.min}" max="${p.max}"
+                               data-plugin="${pluginClass}" data-key="${p.key}" data-type="slider-num"
+                               onchange="onSliderNumTextChange(this)" />
+                    `;
+                    container.appendChild(row);
+                } else if (p.type === 'checkbox') {
+                    const row = document.createElement('div');
+                    row.className = 'param-checkbox';
+                    const checked = props[p.key] !== undefined ? props[p.key] : true;
+                    row.innerHTML = `
+                        <input type="checkbox" id="chk-${p.key}" ${checked ? 'checked' : ''}
+                               data-plugin="${pluginClass}" data-key="${p.key}" data-type="checkbox"
+                               onchange="updateAnimProp('${pluginClass}','${p.key}',this.checked)" />
+                        <label for="chk-${p.key}">${p.label}</label>
+                    `;
+                    container.appendChild(row);
+                } else if (p.type === 'color') {
+                    const row = document.createElement('div');
+                    row.className = 'param-row';
+                    const val = (props[p.key] || '#ffffff').toLowerCase();
+                    row.innerHTML = `
+                        <span class="param-label">${p.label}</span>
+                        <div class="color-input-group">
+                            <input type="color" value="${val}" data-plugin="${pluginClass}" data-key="${p.key}" data-type="color"
+                                   onchange="onColorChange(this, '${pluginClass}', '${p.key}', this.nextElementSibling)" />
+                            <input type="text" class="color-hex" value="${val}"
+                                   onchange="onColorHexChange(this, '${pluginClass}', '${p.key}', this.previousElementSibling)" />
+                        </div>
+                    `;
+                    container.appendChild(row);
+                } else if (p.type === 'text') {
+                    const row = document.createElement('div');
+                    row.className = 'param-row';
+                    const val = props[p.key] || '';
+                    row.innerHTML = `
+                        <span class="param-label">${p.label}</span>
+                        <input type="text" value="${val}" data-plugin="${pluginClass}" data-key="${p.key}" data-type="text"
+                               onchange="updateAnimProp('${pluginClass}','${p.key}',this.value)" />
+                    `;
+                    container.appendChild(row);
+                }
+            });
+        }
+
+        function syncEffectParamsFromState() {
+            if (!selectedEffectForPanel) return;
+            const pluginClass = getPluginClassName(selectedEffectForPanel);
+            const props = (appState && appState.anim_props && appState.anim_props[pluginClass]) || {};
+            if (!props || Object.keys(props).length === 0) return;
+
+            const container = document.getElementById('effect-params-container');
+            const inputs = container.querySelectorAll('input[data-plugin][data-key]');
+            inputs.forEach(inp => {
+                if (inp.dataset.plugin !== pluginClass) return;
+                const key = inp.dataset.key;
+                const type = inp.dataset.type;
+                const val = props[key];
+                if (val === undefined) return;
+                if (document.activeElement === inp) return;
+
+                if (type === 'slider') {
+                    const numVal = parseInt(val);
+                    if (!isNaN(numVal) && inp.value != numVal) {
+                        inp.value = numVal;
+                        const valSpan = inp.nextElementSibling;
+                        if (valSpan && valSpan.classList.contains('param-value')) {
+                            valSpan.textContent = numVal;
+                        }
+                    }
+                } else if (type === 'checkbox') {
+                    const boolVal = !!val;
+                    if (inp.checked !== boolVal) {
+                        inp.checked = boolVal;
+                    }
+                } else if (type === 'color') {
+                    const colorVal = (val || '#ffffff').toLowerCase();
+                    if (inp.value !== colorVal) {
+                        inp.value = colorVal;
+                        const hexInput = inp.nextElementSibling;
+                        if (hexInput) hexInput.value = colorVal;
+                    }
+                } else if (type === 'slider-num') {
+                    const numVal = parseInt(val);
+                    if (!isNaN(numVal) && inp.value != numVal) {
+                        inp.value = numVal;
+                        if (inp.type === 'range') {
+                            const numInput = inp.parentElement.querySelector('.slider-num-input');
+                            if (numInput && document.activeElement !== numInput) numInput.value = numVal;
+                        }
+                    }
+                } else if (type === 'text') {
+                    if (inp.value !== val) {
+                        inp.value = val;
+                    }
+                }
+            });
+        }
+
+        function updateAnimProp(plugin, key, value) {
+            fetch('/api/anim_props', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plugin, key, value })
+            });
+        }
+
+        function onColorChange(colorInput, plugin, key, hexInput) {
+            const val = colorInput.value;
+            hexInput.value = val;
+            updateAnimProp(plugin, key, val);
+        }
+
+        function onColorHexChange(hexInput, plugin, key, colorInput) {
+            let val = hexInput.value.trim().toLowerCase();
+            if (!val.startsWith('#')) val = '#' + val;
+            if (/^#[0-9a-f]{6}$/.test(val)) {
+                colorInput.value = val;
+                updateAnimProp(plugin, key, val);
+            }
+        }
+
+        function syncSliderNumVisual(slider) {
+            const val = parseInt(slider.value);
+            const numInput = slider.parentElement.querySelector('.slider-num-input');
+            if (numInput && document.activeElement !== numInput) {
+                numInput.value = val;
+            }
+        }
+
+        function onSliderNumRelease(slider) {
+            const plugin = slider.dataset.plugin;
+            const key = slider.dataset.key;
+            const val = parseInt(slider.value);
+            updateAnimProp(plugin, key, val);
+        }
+
+        function onSliderNumTextChange(numInput) {
+            const plugin = numInput.dataset.plugin;
+            const key = numInput.dataset.key;
+            let val = parseInt(numInput.value);
+            const min = parseInt(numInput.min);
+            const max = parseInt(numInput.max);
+            if (isNaN(val)) val = min;
+            val = Math.max(min, Math.min(max, val));
+            numInput.value = val;
+            updateAnimProp(plugin, key, val);
+            const row = numInput.parentElement;
+            const slider = row.querySelector('input[type="range"]');
+            if (slider) slider.value = val;
+        }
+
+        // ===== COLOR CORRECTION =====
+        let colorSlidersRendered = false;
+        const colorDefs = [
+            { key: 'r', label: 'Limite ROJO', min: 0, max: 255, suffix: '' },
+            { key: 'g', label: 'Limite VERDE', min: 0, max: 255, suffix: '' },
+            { key: 'b', label: 'Limite AZUL', min: 0, max: 255, suffix: '' },
+            { key: 'bri', label: 'Brillo', min: -100, max: 100, suffix: '%' },
+            { key: 'cont', label: 'Contraste', min: 0, max: 200, suffix: '%' },
+            { key: 'gam', label: 'Optic Gamma (x100)', min: 10, max: 300, suffix: '' }
+        ];
+
+        let pendingColor = {};
+
+        function renderColorSliders() {
+            const container = document.getElementById('color-sliders');
+            if (colorSlidersRendered) return;
+            container.innerHTML = '';
+
+            const cc = (appState && appState.color_correction) || { r:255, g:255, b:255, bri:0, cont:100, gam:100 };
+
+            colorDefs.forEach(d => {
+                const row = document.createElement('div');
+                row.className = 'slider-row';
+                const val = cc[d.key] !== undefined ? cc[d.key] : (d.min + d.max) / 2;
+                pendingColor[d.key] = val;
+                row.innerHTML = `
+                    <label>${d.label}</label>
+                    <input type="range" min="${d.min}" max="${d.max}" value="${val}" 
+                           data-key="${d.key}" data-suffix="${d.suffix}"
+                           oninput="onColorSliderInput(this)" />
+                    <span class="slider-value">${val}${d.suffix}</span>
+                `;
+                container.appendChild(row);
+            });
+
+            const btn = document.createElement('button');
+            btn.className = 'btn-primary';
+            btn.textContent = 'Aplicar';
+            btn.style.marginTop = '12px';
+            btn.onclick = applyColorCorrection;
+            container.appendChild(btn);
+
+            colorSlidersRendered = true;
+        }
+
+        function onColorSliderInput(el) {
+            const key = el.dataset.key;
+            const suffix = el.dataset.suffix;
+            const val = parseInt(el.value);
+            pendingColor[key] = val;
+            el.nextElementSibling.textContent = val + suffix;
+        }
+
+        function applyColorCorrection() {
+            fetch('/api/color_correction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pendingColor)
+            });
+        }
+
+        function syncColorSlidersFromState() {
+            const cc = (appState && appState.color_correction);
+            if (!cc) return;
+            colorDefs.forEach(d => {
+                if (cc[d.key] !== undefined) {
+                    pendingColor[d.key] = cc[d.key];
+                    const sliders = document.querySelectorAll('#color-sliders input[type="range"]');
+                    sliders.forEach(sl => {
+                        if (sl.dataset.key === d.key) {
+                            sl.value = cc[d.key];
+                            sl.nextElementSibling.textContent = cc[d.key] + d.suffix;
+                        }
+                    });
+                }
+            });
+        }
+
+        function updateCapturePreview() {
+            const card = document.getElementById('capture-preview-card');
+            const region = appState && appState.capture_region;
+            const isCaptureEffect = selectedEffectForPanel && getPluginClassName(selectedEffectForPanel) === 'ScreenCaptureAnim';
+
+            if (!region || !isCaptureEffect) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+            const canvas = document.getElementById('capture-canvas');
+            const box = document.getElementById('capture-region-box');
+            const info = document.getElementById('capture-info');
+
+            const cw = canvas.clientWidth;
+            const ch = canvas.clientHeight;
+
+            const refW = Math.max(region.x + region.w, 1920);
+            const refH = Math.max(region.y + region.h, 1080);
+
+            const scaleX = cw / refW;
+            const scaleY = ch / refH;
+            const scale = Math.min(scaleX, scaleY);
+
+            const ox = (cw - refW * scale) / 2;
+            const oy = (ch - refH * scale) / 2;
+
+            const rx = ox + region.x * scale;
+            const ry = oy + region.y * scale;
+            const rw = Math.max(region.w * scale, 8);
+            const rh = Math.max(region.h * scale, 8);
+
+            box.style.left = rx + 'px';
+            box.style.top = ry + 'px';
+            box.style.width = rw + 'px';
+            box.style.height = rh + 'px';
+
+            info.innerHTML = `
+                <span class="capture-info-item"><b>X:</b> ${region.x}</span>
+                <span class="capture-info-item"><b>Y:</b> ${region.y}</span>
+                <span class="capture-info-item"><b>Ancho:</b> ${region.w}</span>
+                <span class="capture-info-item"><b>Alto:</b> ${region.h}</span>
+            `;
+        }
+
+        // ===== COLOR PROFILES =====
+        function loadProfileList() {
+            const sel = document.getElementById('profile-select');
+            sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+            if (appState && appState.color_profiles) {
+                appState.color_profiles.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p;
+                    opt.textContent = p;
+                    sel.appendChild(opt);
+                });
+            }
+        }
+
+        function loadProfile() {
+            const name = document.getElementById('profile-select').value;
+            if (!name) return;
+            fetch('/api/color_profiles/load', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+        }
+
+        function saveProfile() {
+            const name = document.getElementById('new-profile-name').value.trim();
+            if (!name) return;
+            fetch('/api/color_profiles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            document.getElementById('new-profile-name').value = '';
+        }
+
+        // ===== PLUGINS MANAGER =====
+        let pluginsRendered = false;
+        const pluginDisplayMap = {
+            'Rainbow': 'Arcoiris Dinamico',
+            'AuroraBoreal': 'Aurora Boreal',
+            'HitannaNeonWave': 'Hitanna Neon Wave',
+            'NeonEqualizer': 'Neon Equalizer',
+            'MidiKeyboard': 'Teclado Piano Estructurado',
+            'PulseColor': 'Pulse Color',
+            'TestPattern': 'Test Pattern',
+            'ScreenCaptureAnim': 'Capturar Pantalla',
+        };
+
+        function renderPlugins() {
+            if (pluginsRendered) return;
+            const container = document.getElementById('plugins-list');
+            container.innerHTML = '';
+
+            const active = (appState && appState.active_plugins) || {};
+            const allPlugins = Object.keys(pluginDisplayMap);
+
+            allPlugins.forEach(clsName => {
+                const displayName = pluginDisplayMap[clsName] || clsName;
+                const isActive = active[clsName] !== undefined ? active[clsName] : true;
+                const item = document.createElement('div');
+                item.className = 'plugin-item';
+                item.innerHTML = `
+                    <input type="checkbox" id="plugin-${clsName}" ${isActive ? 'checked' : ''} 
+                           onchange="togglePlugin('${clsName}', this.checked)" />
+                    <label for="plugin-${clsName}" style="cursor:pointer; flex:1;">${displayName}</label>
+                    <span class="plugin-class">${clsName}</span>
+                `;
+                container.appendChild(item);
+            });
+
+            pluginsRendered = true;
+        }
+
+        function togglePlugin(clsName, active) {
+            fetch('/api/toggle_plugin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plugin: clsName, active })
+            });
+        }
+
+        // ===== STATE FETCH =====
+        let connectErrors = 0;
+        async function fetchState() {
+            try {
+                const res = await fetch('/api/state');
+                if(!res.ok) throw new Error("Network not ok");
+                const data = await res.json();
+                appState = data;
+
+                let rebuildNeeded = false;
+                if(JSON.stringify(animations) !== JSON.stringify(data.animations)) {
+                    animations = data.animations || [];
+                    rebuildNeeded = true;
+                }
+
+                currentIndex = data.current_anim_index !== undefined ? data.current_anim_index : -1;
+                isPaused = !!data.is_paused;
+                isBlackout = !!data.is_blackout;
+
+                if(data.master_dimmer !== undefined) {
+                    const dimmerParam = document.getElementById('master-dimmer');
+                    if (document.activeElement !== dimmerParam) {
+                        dimmerParam.value = data.master_dimmer;
+                    }
+                }
+
+                if(rebuildNeeded) {
+                    createAnimButtons();
+                } else {
+                    updateUI();
+                }
+
+                syncColorSlidersFromState();
+                syncEffectParamsFromState();
+                updateCapturePreview();
+                loadProfileList();
+
+                connectErrors = 0;
+
+            } catch (err) {
+                connectErrors++;
+            }
+        }
+
+        async function sendCommand(action, args = {}) {
+            try {
+                if(action === 'set_anim' && args.index !== undefined) {
+                    currentIndex = args.index;
+                } else if(action === 'toggle_pause') {
+                    isPaused = !isPaused;
+                } else if(action === 'toggle_blackout') {
+                    isBlackout = !isBlackout;
+                }
+                updateUI();
+
+                const payload = { action, ...args };
+                await fetch('/api/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch(e) {
+                console.error("Command failed", e);
+            }
+        }
+
+        function sendDimmer(val) {
+            sendCommand('set_dimmer', { value: parseInt(val) });
+        }
+
+        // Preview modal toggle functions
+        function togglePreviewExpand() {
+            openPreviewModal();
+        }
+
+        function openPreviewModal() {
+            const modal = document.getElementById('preview-modal');
+            const modalImg = document.getElementById('modal-matrix-preview');
+            const img = document.getElementById('matrix-preview');
+            const mobileImg = document.getElementById('mobile-matrix-preview');
+            if (modalImg) {
+                if (mobileImg && mobileImg.src) {
+                    modalImg.src = mobileImg.src;
+                } else if (img && img.src) {
+                    modalImg.src = img.src;
+                }
+            }
+            modal.classList.add('open');
+        }
+
+        function closePreviewModal() {
+            document.getElementById('preview-modal').classList.remove('open');
+        }
+
+        // SSE Preview Stream Connection
+        let eventSource = null;
+        function initPreviewStream() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            eventSource = new EventSource('/api/preview/stream');
+            eventSource.onmessage = function(event) {
+                const b64Data = event.data;
+                const imgSrc = 'data:image/png;base64,' + b64Data;
+                
+                const img = document.getElementById('matrix-preview');
+                if (img) img.src = imgSrc;
+                
+                const modalImg = document.getElementById('modal-matrix-preview');
+                if (modalImg && document.getElementById('preview-modal').classList.contains('open')) {
+                    modalImg.src = imgSrc;
+                }
+
+                const mobileImg = document.getElementById('mobile-matrix-preview');
+                if (mobileImg) mobileImg.src = imgSrc;
+
+                const efectosImg = document.getElementById('efectos-preview-img');
+                if (efectosImg) efectosImg.src = imgSrc;
+            };
+            eventSource.onerror = function() {
+                console.warn("Preview stream disconnected. Retrying in 3s...");
+                eventSource.close();
+                setTimeout(initPreviewStream, 3000);
+            };
+        }
+
+        // Poll state every 1s (no image data)
+        setInterval(fetchState, 1000);
+        fetchState();
+
+        // Initialize SSE Stream
+        initPreviewStream();
+    </script>
+
+    <!-- PREVIEW OVERLAY MODAL -->
+    <div id="preview-modal" class="preview-modal" onclick="closePreviewModal()">
+        <div class="preview-modal-content" onclick="event.stopPropagation()">
+            <span class="preview-modal-close" onclick="closePreviewModal()">&times;</span>
+            <div class="preview-modal-header">
+                <h3>Visualización En Vivo</h3>
+            </div>
+            <div class="preview-modal-body">
+                <img id="modal-matrix-preview" src="" alt="Preview Grande" />
+            </div>
+        </div>
+    </div>
+</body>
+</html>

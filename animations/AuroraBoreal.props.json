@@ -1,0 +1,10 @@
+{
+    "speed": 14,
+    "wave_size": 6,
+    "brightness": 70,
+    "sparkles": false,
+    "sparkle_amount": 9,
+    "color_a": "#00ffaa",
+    "color_b": "#7a00ff",
+    "color_c": "#00aaff"
+}

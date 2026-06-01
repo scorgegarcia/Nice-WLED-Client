@@ -1,0 +1,12 @@
+{
+    "speed": 14,
+    "bars": 11,
+    "intensity": 62,
+    "trail": 12,
+    "mirror": false,
+    "sparkles": false,
+    "sparkle_amount": 14,
+    "color_a": "#55ffff",
+    "color_b": "#ff00ff",
+    "color_c": "#ffff7f"
+}
