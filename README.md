@@ -1,5 +1,7 @@
 # Nice WLED Client
 
+![WLED Animador y Capturador](https://i.ibb.co/tTsNcYSc/WLED-Animador-y-Capturador.png)
+
 Cliente avanzado para **WLED** orientado a matrices LED 2D, con interfaz de escritorio en **PyQt6**, servidor de control web en **Flask** y motor gráfico en **Pygame**.
 
 El proyecto permite:
@@ -27,6 +29,8 @@ El proyecto permite:
 - **Control local y remoto simultáneo**:
   - UI de escritorio (PyQt6).
   - API web + preview PNG/stream en `http://localhost:9020`.
+
+![Configuración de Efectos](https://i.ibb.co/PZ45ywkr/image.png)
 
 ## Arquitectura del proyecto
 
@@ -110,6 +114,8 @@ Desde la app puedes:
 - Calibrar color y guardar/cargar perfiles.
 
 ### 2) Control web
+
+![Utilizalo desde una pagina web](https://i.ibb.co/S9ZpXw5/image.png)
 
 Al ejecutar `main.py`, también se levanta un servidor Flask en:
 
