@@ -47,7 +47,7 @@ def save_config(config, path="config.json"):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("WLED Animador y Capturador")
+        self.setWindowTitle("Nice WLED Client")
         
         self.config = load_config()
         self.config.setdefault("wled", {"ip": "192.168.1.100", "port": 4048})
