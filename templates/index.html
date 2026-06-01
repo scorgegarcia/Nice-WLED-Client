@@ -1865,8 +1865,8 @@
             };
         }
 
-        // Poll state every 1s (no image data)
-        setInterval(fetchState, 1000);
+        // Poll state more frequently so slider-num tracks the capture frame movement.
+        setInterval(fetchState, 250);
         fetchState();
 
         // Initialize SSE Stream
