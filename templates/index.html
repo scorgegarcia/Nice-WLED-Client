@@ -693,38 +693,6 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        .capture-region-box {
-            position: absolute;
-            border: 2px solid var(--danger);
-            background: rgba(255, 75, 92, 0.06);
-            box-shadow: 0 0 12px rgba(255, 75, 92, 0.2);
-            min-width: 8px;
-            min-height: 8px;
-        }
-        .capture-region-box::after {
-            content: '';
-            position: absolute;
-            top: -2px; left: -2px; right: -2px; bottom: -2px;
-            border: 1px solid rgba(255, 75, 92, 0.25);
-            border-radius: 2px;
-        }
-        .capture-info {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            justify-content: center;
-        }
-        .capture-info-item {
-            background: var(--surface);
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-family: 'Inter', monospace;
-            color: var(--text-color);
-        }
-        .capture-info-item b {
-            color: var(--active-bg);
-        }
 
         /* ===== TAB: CORRECCION DE COLOR ===== */
         .color-tutorial {
@@ -1112,16 +1080,6 @@
                 <div class="effect-params" id="effect-params-container">
                     <p style="color:var(--text-muted); font-size:0.82rem;">Selecciona un efecto para ver sus parametros.</p>
                 </div>
-            </div>
-            <div class="card" id="capture-preview-card" style="display:none;">
-                <h3>Region de Captura</h3>
-                <div class="capture-preview-wrapper">
-                    <div class="capture-canvas" id="capture-canvas">
-                        <div class="capture-overlay-label">Pantalla Completa</div>
-                        <div class="capture-region-box" id="capture-region-box"></div>
-                    </div>
-                </div>
-                <div class="capture-info" id="capture-info"></div>
             </div>
         </div>
 
@@ -1696,49 +1654,8 @@
         }
 
         function updateCapturePreview() {
-            const card = document.getElementById('capture-preview-card');
-            const region = appState && appState.capture_region;
-            const isCaptureEffect = selectedEffectForPanel && getPluginClassName(selectedEffectForPanel) === 'ScreenCaptureAnim';
-
-            if (!region || !isCaptureEffect) {
-                card.style.display = 'none';
-                return;
-            }
-
-            card.style.display = 'block';
-            const canvas = document.getElementById('capture-canvas');
-            const box = document.getElementById('capture-region-box');
-            const info = document.getElementById('capture-info');
-
-            const cw = canvas.clientWidth;
-            const ch = canvas.clientHeight;
-
-            const refW = Math.max(region.x + region.w, 1920);
-            const refH = Math.max(region.y + region.h, 1080);
-
-            const scaleX = cw / refW;
-            const scaleY = ch / refH;
-            const scale = Math.min(scaleX, scaleY);
-
-            const ox = (cw - refW * scale) / 2;
-            const oy = (ch - refH * scale) / 2;
-
-            const rx = ox + region.x * scale;
-            const ry = oy + region.y * scale;
-            const rw = Math.max(region.w * scale, 8);
-            const rh = Math.max(region.h * scale, 8);
-
-            box.style.left = rx + 'px';
-            box.style.top = ry + 'px';
-            box.style.width = rw + 'px';
-            box.style.height = rh + 'px';
-
-            info.innerHTML = `
-                <span class="capture-info-item"><b>X:</b> ${region.x}</span>
-                <span class="capture-info-item"><b>Y:</b> ${region.y}</span>
-                <span class="capture-info-item"><b>Ancho:</b> ${region.w}</span>
-                <span class="capture-info-item"><b>Alto:</b> ${region.h}</span>
-            `;
+            // La region de captura ya no se muestra en la interfaz web.
+            return;
         }
 
         // ===== COLOR PROFILES =====
